@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local data and generated catalog tables (summaries are committed)
+data/
+catalog/*.parquet
