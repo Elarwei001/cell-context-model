@@ -43,6 +43,7 @@ One row per context key; the context key is the tuple of normalised axis values.
 | Column | Type | Notes |
 |---|---|---|
 | `context_id` | string | Stable hash of the context key |
+| `modality` | enum | `single-cell RNA`, `bulk RNA`, `imaging`; part of the context key, so a context measured by two modalities is two rows |
 | `species` | string | NCBI taxon label |
 | `identity_kind` | enum | `cell_type`, `cell_line`, `organoid`, `mixed` |
 | `tissue`, `tissue_general` | string | UBERON labels where available |
@@ -54,8 +55,9 @@ One row per context key; the context key is the tuple of normalised axis values.
 | `time_point` | string | Time after stimulation or intervention, if any |
 | `intervention_kind` | enum | `none`, `genetic`, `chemical`, `ligand`, `other` |
 | `intervention_target` | string | Gene symbol (genetic), compound (chemical) or ligand name |
-| `intervention_detail` | string | Modality (CRISPRi/CRISPRko/overexpression), dose, guide, etc. |
+| `intervention_detail` | string | Perturbation technology (CRISPRi, CRISPR KO, shRNA, ORF overexpression), dose, etc. In the intervention table, genetic perturbations are split into loss-of-function and gain-of-function (`intervention_effect`) |
 | `n_cells` | int | Cells in this context, summed over sources (primary data only where the source marks duplicates) |
+| `n_samples` | int | Bulk profiles or signatures (bulk RNA), or wells (imaging) |
 | `n_sources` | int | Number of contributing datasets |
 | `sources` | list | Dataset identifiers |
 | `assays` | list | Assay labels (10x 3' v3, Smart-seq2, Visium, ...) |
@@ -77,6 +79,8 @@ Ontology normalisation reuses the source annotations: CELLxGENE already ships CL
 | Parse 10M PBMC | Per-cell metadata (registration required) | Ligand interventions × donors |
 | Tahoe-100M | Per-cell metadata | Chemical interventions × 50 cell lines |
 | LINCS L1000 | Signature metadata | Genetic and chemical interventions × about 250 cell lines (bulk) |
+| JUMP Cell Painting (cpg0016) | Well metadata (GitHub) | Imaging: compounds, CRISPR knockouts and ORF overexpression in U2OS |
+| RxRx3-core | Well metadata (Hugging Face) | Imaging: CRISPR knockouts and compounds in primary HUVEC endothelial cells |
 
 ## 5. Identity coverage: how many cell lines and cell types
 

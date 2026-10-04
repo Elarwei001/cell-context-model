@@ -84,3 +84,55 @@ def test_identities_split_observational_and_perturbed():
     assert h["n_genetic"] == 1 and h["n_chemical"] == 1 and h["n_interventions"] == 2
     assert h["n_development_stages"] == 3
     assert bool(h["has_temporal"])
+
+
+def test_modality_is_part_of_the_context_key():
+    row = dict(source="s", species="human", identity_kind="cell_line", identity="U2OS",
+               intervention_kind="genetic", intervention_target="MYC")
+    rna = dict(row, modality="single-cell RNA", n_cells=10)
+    img = dict(row, source="j", modality="imaging", n_samples=4)
+    ctx = build_contexts([pd.DataFrame([rna, img])])
+    assert len(ctx) == 2
+    iv = build_interventions(ctx).set_index("intervention_target")
+    assert iv.loc["MYC", "n_cell_lines"] == 1  # same identity, two modalities
+    assert iv.loc["MYC", "modalities"] == "imaging,single-cell RNA"
+
+
+def test_rxrx3_controls_and_kinds(tmp_path):
+    from ccm.catalog.sources.imaging import HUVEC_CELL_TYPE, rxrx3_contexts
+
+    csv = tmp_path / "meta.csv"
+    pd.DataFrame(
+        [
+            dict(well_id="a", gene="PLK1", treatment="", concentration=None,
+                 perturbation_type="CRISPR", well_type_label="CRISPR Gene Positive Controls"),
+            dict(well_id="b", gene="SRC", treatment="", concentration=None,
+                 perturbation_type="CRISPR", well_type_label="Intron controls"),
+            dict(well_id="c", gene="", treatment="drugA", concentration=2.5,
+                 perturbation_type="COMPOUND", well_type_label="Query Compounds"),
+        ]
+    ).to_csv(csv, index=False)
+    df = rxrx3_contexts(str(csv)).set_index("intervention_kind")
+    assert df.loc["genetic", "intervention_target"] == "PLK1"
+    assert df.loc["none", "intervention_target"] == ""  # intron cutting control
+    assert df.loc["chemical", "intervention_detail"] == "compound 2.5 uM"
+    assert set(df["identity"]) == {HUVEC_CELL_TYPE}
+
+
+def test_loss_and_gain_of_function_are_separate_interventions():
+    from ccm.catalog.build import genetic_effect
+
+    assert genetic_effect("CRISPRi") == "loss"
+    assert genetic_effect("ORF overexpression") == "gain"
+    rows = pd.DataFrame(
+        [
+            dict(source="a", species="human", identity_kind="cell_line", identity="U2OS",
+                 intervention_kind="genetic", intervention_target="MYC",
+                 intervention_detail="CRISPR KO", n_samples=3),
+            dict(source="a", species="human", identity_kind="cell_line", identity="U2OS",
+                 intervention_kind="genetic", intervention_target="MYC",
+                 intervention_detail="ORF overexpression", n_samples=3),
+        ]
+    )
+    iv = build_interventions(build_contexts([rows]))
+    assert sorted(iv["intervention_effect"]) == ["gain", "loss"]

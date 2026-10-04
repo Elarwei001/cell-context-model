@@ -59,6 +59,7 @@ def l1000_contexts(siginfo_path: str, cellinfo_path: str) -> pd.DataFrame:
     df["identity"] = df["cell_iname"].map(normalise_cell_line)
     df["cell_line_id"] = df["cell_iname"].map(cellosaurus).fillna("")
     df["source"] = "lincs-l1000:2020"
+    df["modality"] = "bulk RNA"
     df["species"] = "human"
     df["identity_kind"] = "cell_line"
     df["assay"] = "L1000 (bulk, ~978 landmark genes)"

@@ -41,6 +41,7 @@ def xatlas_contexts(revision: str = REVISION, verbose: bool = True) -> pd.DataFr
             rows.append(
                 {
                     "source": f"xatlas-orion:{line.lower()}",
+                    "modality": "single-cell RNA",
                     "species": "human",
                     "identity_kind": "cell_line",
                     "identity": line,
@@ -48,7 +49,7 @@ def xatlas_contexts(revision: str = REVISION, verbose: bool = True) -> pd.DataFr
                     "intervention_kind": "none" if ctrl else "genetic",
                     "intervention_target": "" if ctrl else target,
                     "intervention_detail": "" if ctrl else "CRISPRi",
-                    "assay": "10x Flex",
+                    "assay": "Perturb-seq (fixed cells)",
                     "n_cells": n,
                     "licence": LICENCE,
                 }

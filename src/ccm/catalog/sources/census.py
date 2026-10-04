@@ -53,6 +53,7 @@ def census_contexts(
                 print(f"[census:{species}] {n:,} cells, {len(counts):,} groups", flush=True)
     df = counts.astype("int64").rename("n_cells").reset_index()
     df["source"] = f"census:{census_version}:" + df["dataset_id"]
+    df["modality"] = "single-cell RNA"
     df["species"] = SPECIES.get(species, species)
     df["identity_kind"] = "cell_type"
     df["identity"] = df["cell_type"]

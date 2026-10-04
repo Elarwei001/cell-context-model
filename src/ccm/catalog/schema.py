@@ -15,6 +15,7 @@ import pandas as pd
 #: Columns every source adapter must return (extra columns are dropped).
 CONTEXT_COLUMNS: list[str] = [
     "source",  # dataset or collection identifier, e.g. "census:2025-11-08:<dataset_id>"
+    "modality",  # see MODALITIES
     "species",
     "identity_kind",  # "cell_type" | "cell_line"
     "identity",  # canonical identity key (CL label for cell types; normalised name for lines)
@@ -30,8 +31,8 @@ CONTEXT_COLUMNS: list[str] = [
     "intervention_target",  # gene symbol, compound or ligand; "" when intervention_kind == "none"
     "intervention_detail",  # modality, dose, etc.
     "assay",
-    "n_cells",  # single-cell count (0 for bulk sources)
-    "n_samples",  # bulk profiles or signatures (0 for single-cell sources)
+    "n_cells",  # single-cell count (0 for bulk and well-level imaging sources)
+    "n_samples",  # bulk profiles/signatures, or imaging wells (0 for single-cell sources)
     "has_spatial",
     "has_kinetics",
     "licence",
@@ -39,6 +40,7 @@ CONTEXT_COLUMNS: list[str] = [
 
 #: Axes that define a context (the context key).
 KEY_COLUMNS: list[str] = [
+    "modality",
     "species",
     "identity_kind",
     "identity",
@@ -54,6 +56,14 @@ KEY_COLUMNS: list[str] = [
 
 INTERVENTION_KINDS = ("none", "genetic", "chemical", "ligand", "other")
 
+#: Measurement modalities. A context measured by two modalities appears as two rows.
+MODALITIES = (
+    "single-cell RNA",
+    "bulk RNA",
+    "imaging",
+    "unspecified",
+)
+
 #: Known cell lines with Cellosaurus accessions, keyed by normalised name.
 CELLOSAURUS: dict[str, str] = {
     "K562": "CVCL_0004",
@@ -68,6 +78,7 @@ CELLOSAURUS: dict[str, str] = {
     "PC3": "CVCL_0035",
     "HELA": "CVCL_0030",
     "HT29": "CVCL_0320",
+    "U2OS": "CVCL_0042",
 }
 
 _ALIASES = {"HTERTRPE1": "RPE1", "RPE1HTERT": "RPE1", "HEK293FT": "HEK293T"}
@@ -115,6 +126,10 @@ def conform(df: pd.DataFrame) -> pd.DataFrame:
         else:
             out[col] = out[col].fillna(False).astype(bool)
     out.loc[out["intervention_kind"] == "", "intervention_kind"] = "none"
+    out.loc[out["modality"] == "", "modality"] = "unspecified"
+    bad_mod = set(out["modality"]) - set(MODALITIES)
+    if bad_mod:
+        raise ValueError(f"unknown modality values: {sorted(bad_mod)}")
     bad = set(out["intervention_kind"]) - set(INTERVENTION_KINDS)
     if bad:
         raise ValueError(f"unknown intervention_kind values: {sorted(bad)}")

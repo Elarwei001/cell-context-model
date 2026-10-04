@@ -54,6 +54,7 @@ def tahoe_contexts(verbose: bool = True) -> pd.DataFrame:
     df["identity"] = df["cell_name"].astype(str).map(normalise_cell_line)
     df["cell_line_id"] = df["cell_name"].map(cellosaurus).fillna("")
     df["source"] = "tahoe-100m"
+    df["modality"] = "single-cell RNA"
     df["species"] = "human"
     df["identity_kind"] = "cell_line"
     df["assay"] = "Parse (Mosaic multiplexing)"

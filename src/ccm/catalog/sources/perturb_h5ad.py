@@ -44,6 +44,7 @@ def screen_contexts(screen: H5adScreen) -> pd.DataFrame:
         {True: screen.modality, False: ""}
     )
     df["source"] = screen.source
+    df["modality"] = "single-cell RNA"
     df["species"] = "human"
     df["identity_kind"] = "cell_line"
     df["identity"] = line

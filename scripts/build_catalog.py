@@ -1,7 +1,7 @@
 """Build the context catalog from source metadata.
 
 Usage:
-    python scripts/build_catalog.py --data-dir data --sources census,h5ad,xatlas,tahoe,l1000
+    python scripts/build_catalog.py --data-dir data --sources census,h5ad,xatlas,tahoe,l1000,imaging
 
 Per-source rows are cached under <data-dir>/sources/<name>.parquet; pass --refresh to rebuild.
 Outputs go to catalog/: contexts.parquet, interventions.parquet, identities.parquet (large,
@@ -12,6 +12,8 @@ Source inputs:
 - h5ad:   local h5ad files of single-cell CRISPR screens in <data-dir>/h5ad/ (see H5AD_SCREENS).
 - xatlas, tahoe: read from Hugging Face with column projection (no local files needed).
 - l1000:  <data-dir>/l1000/siginfo_beta.txt and cellinfo_beta.txt, downloaded on first use.
+- imaging: JUMP metadata (<data-dir>/jump/*.csv.gz, else read from GitHub) and RxRx3-core
+          metadata (<data-dir>/rxrx3/metadata_rxrx3_core.csv, else read from Hugging Face).
 """
 
 from __future__ import annotations
@@ -42,7 +44,12 @@ SOURCE_NOTES = {
     "xatlas": "X-Atlas/Orion (HCT116, HEK293T)",
     "tahoe": "Tahoe-100M (50 cell lines x drugs x doses)",
     "l1000": "LINCS L1000 2020 release (bulk signatures)",
+    "imaging": "JUMP Cell Painting cpg0016 (U2OS) and RxRx3-core (HUVEC), well counts",
 }
+#: Modality of each source, used to backfill per-source caches written before the field existed.
+SOURCE_MODALITY = {"census": "single-cell RNA", "h5ad": "single-cell RNA",
+                   "xatlas": "single-cell RNA", "tahoe": "single-cell RNA", "l1000": "bulk RNA",
+                   "imaging": "imaging"}
 
 
 def _cached(path: str, refresh: bool, fn):
@@ -97,6 +104,17 @@ def load_source(name: str, data_dir: str, refresh: bool) -> list[pd.DataFrame]:
         return [_cached(os.path.join(cache, "lincs_l1000.parquet"), refresh,
                         lambda: l1000_contexts(os.path.join(d, "siginfo_beta.txt"),
                                                os.path.join(d, "cellinfo_beta.txt")))]
+    if name == "imaging":
+        from ccm.catalog.sources.imaging import jump_contexts, rxrx3_contexts
+
+        jump_dir = os.path.join(data_dir, "jump")
+        rx = os.path.join(data_dir, "rxrx3", "metadata_rxrx3_core.csv")
+        return [
+            _cached(os.path.join(cache, "jump_cpg0016.parquet"), refresh,
+                    lambda: jump_contexts(jump_dir if os.path.isdir(jump_dir) else None)),
+            _cached(os.path.join(cache, "rxrx3_core.parquet"), refresh,
+                    lambda: rxrx3_contexts(rx if os.path.exists(rx) else None)),
+        ]
     raise ValueError(f"unknown source {name}")
 
 
@@ -104,7 +122,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", default="data")
     ap.add_argument("--out-dir", default="catalog")
-    ap.add_argument("--sources", default="census,h5ad,xatlas,tahoe,l1000")
+    ap.add_argument("--sources", default="census,h5ad,xatlas,tahoe,l1000,imaging")
     ap.add_argument("--refresh", action="store_true")
     args = ap.parse_args()
     names = [s for s in args.sources.split(",") if s]
@@ -112,6 +130,9 @@ def main() -> None:
     per_source = {}
     for name in names:
         loaded = load_source(name, args.data_dir, args.refresh)
+        for f in loaded:
+            if "modality" not in f.columns:
+                f["modality"] = SOURCE_MODALITY[name]
         frames += loaded
         for f in loaded:
             label = str(f["source"].iloc[0]).split(":")[0] if len(f) else name

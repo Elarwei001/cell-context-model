@@ -4,11 +4,11 @@
 
 | intervention_kind | measured in one identity only |
 |---|---|
-| chemical | 11,879 |
-| genetic | 824 |
+| chemical | 128,827 |
+| genetic | 10,779 |
 | other | 688 |
 
-## Identities with observational data only: 991 of 1,278
+## Identities with observational data only: 991 of 1,279
 
 The 25 largest by number of observational cells:
 

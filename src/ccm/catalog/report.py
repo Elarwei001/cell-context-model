@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 THRESHOLDS = (1, 2, 5, 10, 20, 50, 100)
@@ -34,8 +35,8 @@ def identity_counts(
     """
     if by == "source":
         groups = list((per_source or {}).items())
-    elif by == "species":
-        groups = list(contexts.groupby("species"))
+    elif by in ("species", "modality"):
+        groups = list(contexts.groupby(by))
     else:
         groups = [("all", contexts)]
     rows = []
@@ -67,7 +68,12 @@ def coverage_distribution(interventions: pd.DataFrame) -> pd.DataFrame:
     rows = []
     if interventions.empty:
         return pd.DataFrame()
-    for kind, g in interventions.groupby("intervention_kind"):
+    keyed = interventions.assign(
+        _k=interventions["intervention_kind"]
+        + np.where(interventions["intervention_effect"] != "",
+                   " (" + interventions["intervention_effect"] + ")", "")
+    )
+    for kind, g in keyed.groupby("_k"):
         row = {"intervention kind": kind, "interventions": len(g)}
         for k in THRESHOLDS:
             row[f">= {k} identities"] = int((g["n_identities"] >= k).sum())
@@ -101,6 +107,7 @@ def direction_coverage(identities: pd.DataFrame) -> pd.DataFrame:
                 "with chemical": int((g["n_chemical"] > 0).sum()),
                 "with ligand": int((g["n_ligand"] > 0).sum()),
                 "with >=2 stages or time points": int(g["has_temporal"].sum()),
+                "with imaging": int(g["has_imaging"].sum()),
                 "with spatial": int(g["has_spatial"].sum()),
                 "observational only": int((g["n_interventions"] == 0).sum()),
             }
@@ -113,12 +120,18 @@ def render_summary(
 ) -> str:
     from .build import build_interventions
 
-    sc_iv = build_interventions(contexts[contexts["n_cells"] > 0])
-    bulk_iv = build_interventions(contexts[contexts["n_samples"] > 0])
+    by_mod = {
+        m: build_interventions(contexts[contexts["modality"] == m])
+        for m in sorted(contexts["modality"].unique())
+    }
+    sc_iv = by_mod.get("single-cell RNA", build_interventions(contexts.iloc[:0]))
     cols = ["intervention_target", "n_identities", "n_cell_lines", "n_cell_types", "n_cells",
             "n_samples", "identities"]
-    top_sc = sc_iv[sc_iv["intervention_kind"] == "genetic"].head(15)[cols]
-    top_any = interventions[interventions["intervention_kind"] == "genetic"].head(10)[cols[:-1]]
+    def _loss(iv):
+        return iv[(iv["intervention_kind"] == "genetic") & (iv["intervention_effect"] == "loss")]
+
+    top_sc = _loss(sc_iv).head(15)[cols]
+    top_any = _loss(interventions).head(10)[cols[:-1] + ["modalities"]]
     parts = [
         "# Context catalog: summary",
         "",
@@ -134,6 +147,10 @@ def render_summary(
         "",
         _md_table(identity_counts(contexts, "species")),
         "",
+        "### By modality",
+        "",
+        _md_table(identity_counts(contexts, "modality")),
+        "",
         "### By source",
         "",
         _md_table(identity_counts(contexts, "source", per_source)),
@@ -141,26 +158,25 @@ def render_summary(
         "## In how many distinct cell lines / cell types was each intervention measured?",
         "",
         "Each cell counts the interventions measured in at least *k* distinct identities "
-        "(cell lines + cell types). Single-cell and bulk data are counted separately, because "
-        "bulk L1000 signatures cover many more cell lines but only about 978 measured genes.",
+        "(cell lines + cell types), separately for each measurement modality (bulk L1000 "
+        "signatures cover many more cell lines but only about 978 genes; imaging counts wells), "
+        "then for all modalities combined.",
         "",
-        "### Single-cell data",
-        "",
-        _md_table(coverage_distribution(sc_iv)),
-        "",
-        "### Bulk data (L1000)",
-        "",
-        _md_table(coverage_distribution(bulk_iv)),
-        "",
+        *[
+            line
+            for m, iv in by_mod.items()
+            if not iv.empty
+            for line in (f"### {m}", "", _md_table(coverage_distribution(iv)), "")
+        ],
         "### All data combined",
         "",
         _md_table(coverage_distribution(interventions)),
         "",
-        "### Genetic perturbations with the widest single-cell identity coverage",
+        "### Loss-of-function genetic perturbations with the widest single-cell identity coverage",
         "",
         _md_table(top_sc),
         "",
-        "### Genetic perturbations with the widest identity coverage (any data type)",
+        "### Loss-of-function genetic perturbations with the widest coverage (any modality)",
         "",
         _md_table(top_any),
         "",

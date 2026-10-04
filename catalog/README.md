@@ -15,11 +15,12 @@ Generated tables describing which cellular contexts open data covers. Design: [.
 ```bash
 uv venv -p 3.12 .venv
 VIRTUAL_ENV=.venv uv pip install -e ".[census,h5ad,hf]"
-.venv/bin/python scripts/build_catalog.py --data-dir data --sources census,h5ad,xatlas,tahoe,l1000
+.venv/bin/python scripts/build_catalog.py --data-dir data --sources census,h5ad,xatlas,tahoe,l1000,imaging
 ```
 
 - `census`, `xatlas` and `tahoe` are read remotely (CELLxGENE Census on S3; Hugging Face with column projection). Only metadata columns are transferred.
 - `l1000` downloads two text files from the CMap LINCS 2020 release (about 465 MB).
+- `imaging` reads JUMP Cell Painting (cpg0016) well metadata from GitHub and RxRx3-core well metadata from Hugging Face (or local copies in `data/jump/` and `data/rxrx3/`). Imaging counts are wells, not cells.
 - `h5ad` expects the single-cell CRISPR screens as local h5ad files in `data/h5ad/` (file names in `scripts/build_catalog.py`):
   - Replogle 2022 K562 genome-wide and RPE1, via scPerturb (Zenodo 7041849);
   - Replogle 2022 K562 essential (figshare);
@@ -33,4 +34,8 @@ VIRTUAL_ENV=.venv uv pip install -e ".[census,h5ad,hf]"
 - **Cell types** are CELLxGENE Cell Ontology labels. Primary-cell perturbation datasets with cell-type identities are not yet included, so every intervention row currently comes from cell lines.
 - **Identities are pooled across species** in `identities.parquet` and in `gaps.md`; for example, `oligodendrocyte` from all five species is one row. Per-species counts are in the "By species" table of `summary.md`.
 - **Donors** are scoped to their source dataset and never linked across datasets.
+- **Modality is part of the context key.** The same cell line and intervention measured by RNA and by imaging appear as two contexts; the intervention table counts identities across modalities and lists them in `modalities`.
+- **Genetic effect direction.** Interventions are split into loss-of-function (CRISPRi, CRISPR KO, shRNA, siRNA) and gain-of-function (ORF overexpression) via `intervention_effect`.
+- **Compounds are not matched across sources** (JUMP uses InChIKeys; Tahoe, RxRx3 and L1000 use names), so chemical identity coverage is a lower bound.
+- **RxRx3-core** is under a restrictive Recursion licence. Only aggregated metadata counts are reported here; the data are not redistributed.
 - **L1000** contributes bulk signatures (`n_samples`), not single cells. Its shRNA seed-matched controls (`trt_sh.css`) and antibody treatments (`trt_aby`) are counted as `other`.
