@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..schema import normalise_cell_line
+from ..schema import PRIMARY_CELLS, normalise_cell_line
 
 BASE = "https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020"
 LICENCE = "LINCS data release policy (open)"
@@ -62,6 +62,10 @@ def l1000_contexts(siginfo_path: str, cellinfo_path: str) -> pd.DataFrame:
     df["modality"] = "bulk RNA"
     df["species"] = "human"
     df["identity_kind"] = "cell_line"
+    primary = df["identity"].isin(PRIMARY_CELLS)
+    df.loc[primary, "identity_kind"] = "cell_type"
+    df.loc[primary, "cell_type"] = df.loc[primary, "identity"].map(PRIMARY_CELLS)
+    df.loc[primary, "identity"] = df.loc[primary, "cell_type"]
     df["assay"] = "L1000 (bulk, ~978 landmark genes)"
     df["licence"] = LICENCE
     return df

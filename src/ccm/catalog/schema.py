@@ -81,6 +81,10 @@ CELLOSAURUS: dict[str, str] = {
     "U2OS": "CVCL_0042",
 }
 
+#: Primary cells that some sources list as "cell lines", mapped to their Cell Ontology label so
+#: they merge with cell-type identities from other sources.
+PRIMARY_CELLS: dict[str, str] = {"HUVEC": "endothelial cell of umbilical vein"}
+
 _ALIASES = {"HTERTRPE1": "RPE1", "RPE1HTERT": "RPE1", "HEK293FT": "HEK293T"}
 
 

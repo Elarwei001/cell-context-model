@@ -8,7 +8,7 @@
 | genetic | 10,779 |
 | other | 688 |
 
-## Identities with observational data only: 991 of 1,279
+## Identities with observational data only: 991 of 1,278
 
 The 25 largest by number of observational cells:
 
